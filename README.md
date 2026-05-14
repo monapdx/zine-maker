@@ -26,6 +26,12 @@ This repo includes a workflow that builds with Vite and publishes the `dist` fol
 
 To rebuild manually, use **Actions → Deploy to GitHub Pages → Run workflow**.
 
+### Site looks blank (white page)
+
+1. **Project site URL** — For a normal repo named `zine-maker`, the app lives at `https://<user>.github.io/zine-maker/` (with the repo slug in the path). Opening only `https://<user>.github.io/` will not load this app.
+2. **User/org Pages repo** — If the repo is named `<user>.github.io` or `<org>.github.io`, the site is served from the domain root (`/`). The build sets Vite `base` to `/` automatically in that case.
+3. In the browser, open DevTools → **Network**, reload, and check whether `*.js` / `*.css` return **404**. Wrong `base` usually shows every asset as 404.
+
 ### Custom base path (optional)
 
 Override the asset prefix when building:
