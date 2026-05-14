@@ -25,7 +25,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - uses: actions/configure-pages@v5
+      # No configure-pages: it calls the Pages API and 404s until Settings → Pages
+      # uses "GitHub Actions". Static Vite output does not need that action anyway.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
