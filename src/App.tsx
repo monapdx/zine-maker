@@ -1,0 +1,400 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
+import { Canvas } from './components/Canvas'
+import { PropertiesPanel } from './components/PropertiesPanel'
+import { Toolbar } from './components/Toolbar'
+import type { CustomSticker, StickerKind, ZineElement, ZineElementType, ZineProject } from './types'
+import { exportCanvasAsPng, exportProjectJson, parseImportedProject } from './utils/export'
+import { clearProject, loadProject, saveProject } from './utils/storage'
+import './styles.css'
+
+const defaultProjectName = 'My Zine'
+const canvasWidth = 900
+const canvasHeight = 1200
+
+function createElement(type: ZineElementType, overrides: Partial<ZineElement> = {}): ZineElement {
+  const now = Date.now()
+  return {
+    id: `${type}-${now}-${Math.random().toString(36).slice(2, 8)}`,
+    type,
+    x: 120,
+    y: 120,
+    width: type === 'text' ? 240 : 200,
+    height: type === 'text' ? 100 : 180,
+    rotation: -2 + Math.random() * 4,
+    zIndex: now,
+    content: type === 'text' ? 'type your loud zine thoughts...' : '',
+    styles: {},
+    ...overrides,
+  }
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(new Error('Failed to read file'))
+    reader.readAsDataURL(file)
+  })
+}
+
+function App() {
+  const [projectName, setProjectName] = useState(defaultProjectName)
+  const [elements, setElements] = useState<ZineElement[]>([])
+  const [customStickers, setCustomStickers] = useState<CustomSticker[]>([])
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
+  const [importText, setImportText] = useState('')
+  const [showImport, setShowImport] = useState(false)
+  const [statusMessage, setStatusMessage] = useState('Ready to make chaos.')
+  const canvasRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const existing = loadProject()
+    if (existing) {
+      setProjectName(existing.projectName)
+      setElements(existing.elements)
+      setCustomStickers(existing.customStickers ?? [])
+      setStatusMessage('Loaded saved zine from localStorage.')
+    }
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const isTypingTarget =
+        target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
+      if (isTypingTarget || !selectedElementId) return
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        setElements((current) => current.filter((item) => item.id !== selectedElementId))
+        setSelectedElementId(null)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selectedElementId])
+
+  const selected = useMemo(
+    () => elements.find((element) => element.id === selectedElementId) ?? null,
+    [elements, selectedElementId],
+  )
+
+  function appendElement(element: ZineElement) {
+    setElements((current) => [...current, element])
+    setSelectedElementId(element.id)
+  }
+
+  async function handleAddImage(file: File) {
+    const dataUrl = await fileToDataUrl(file)
+    appendElement(
+      createElement('image', {
+        content: file.name,
+        mediaUrl: dataUrl,
+        width: 260,
+        height: 220,
+      }),
+    )
+  }
+
+  async function handleAddSoundFile(file: File) {
+    const dataUrl = await fileToDataUrl(file)
+    appendElement(
+      createElement('sound', {
+        content: `Sound: ${file.name}`,
+        mediaUrl: dataUrl,
+        width: 180,
+        height: 96,
+      }),
+    )
+  }
+
+  async function handleUploadCustomSticker(file: File) {
+    const dataUrl = await fileToDataUrl(file)
+    const customSticker: CustomSticker = {
+      id: `custom-sticker-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: file.name,
+      dataUrl,
+    }
+    setCustomStickers((current) => [customSticker, ...current])
+    setStatusMessage(`Added custom sticker: ${file.name}`)
+  }
+
+  function handleAddCustomStickerToCanvas(stickerId: string) {
+    const sticker = customStickers.find((item) => item.id === stickerId)
+    if (!sticker) {
+      setStatusMessage('Custom sticker not found.')
+      return
+    }
+    appendElement(
+      createElement('sticker', {
+        content: sticker.name,
+        mediaUrl: sticker.dataUrl,
+        width: 150,
+        height: 150,
+      }),
+    )
+  }
+
+  function updateElement(id: string, patch: Partial<ZineElement>) {
+    setElements((current) =>
+      current.map((element) => (element.id === id ? { ...element, ...patch, styles: patch.styles ?? element.styles } : element)),
+    )
+  }
+
+  function autoResizeTextElement(id: string, nextHeight: number) {
+    setElements((current) =>
+      current.map((element) => {
+        if (element.id !== id || element.type !== 'text') {
+          return element
+        }
+        const clampedHeight = Math.max(64, Math.min(canvasHeight - element.y, nextHeight))
+        if (Math.abs(clampedHeight - element.height) <= 1) {
+          return element
+        }
+        return { ...element, height: clampedHeight }
+      }),
+    )
+  }
+
+  function duplicateElement(id: string) {
+    setElements((current) => {
+      const source = current.find((element) => element.id === id)
+      if (!source) return current
+      const duplicate = {
+        ...source,
+        id: `${source.type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        x: source.x + 24,
+        y: source.y + 24,
+        zIndex: Date.now(),
+      }
+      setSelectedElementId(duplicate.id)
+      return [...current, duplicate]
+    })
+  }
+
+  function moveElementStart(id: string, event: ReactPointerEvent<HTMLDivElement>) {
+    const source = elements.find((element) => element.id === id)
+    if (!source) return
+    setSelectedElementId(id)
+
+    const startX = event.clientX
+    const startY = event.clientY
+    const pointerId = event.pointerId
+    const elementNode = event.currentTarget
+    elementNode.setPointerCapture(pointerId)
+
+    const onPointerMove = (pointerEvent: PointerEvent) => {
+      const dx = pointerEvent.clientX - startX
+      const dy = pointerEvent.clientY - startY
+      setElements((current) =>
+        current.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                x: Math.max(0, Math.min(canvasWidth - item.width, source.x + dx)),
+                y: Math.max(0, Math.min(canvasHeight - item.height, source.y + dy)),
+              }
+            : item,
+        ),
+      )
+    }
+
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+      elementNode.releasePointerCapture(pointerId)
+    }
+
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+  }
+
+  function saveCurrentProject() {
+    const project: ZineProject = { projectName, elements, customStickers }
+    saveProject(project)
+    setStatusMessage('Saved to localStorage.')
+  }
+
+  function loadCurrentProject() {
+    const project = loadProject()
+    if (!project) {
+      setStatusMessage('No saved zine found.')
+      return
+    }
+    setProjectName(project.projectName)
+    setElements(project.elements)
+    setCustomStickers(project.customStickers ?? [])
+    setSelectedElementId(null)
+    setStatusMessage('Loaded saved zine.')
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="top-bar">
+        <input
+          value={projectName}
+          onChange={(event) => setProjectName(event.target.value)}
+          className="project-name-input"
+          aria-label="Project name"
+        />
+        <div className="top-actions">
+          <button type="button" onClick={saveCurrentProject}>
+            Save
+          </button>
+          <button type="button" onClick={loadCurrentProject}>
+            Load
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              clearProject()
+              setElements([])
+              setCustomStickers([])
+              setSelectedElementId(null)
+              setProjectName(defaultProjectName)
+              setStatusMessage('New zine. Blank canvas.')
+            }}
+          >
+            New Zine
+          </button>
+          <button type="button" onClick={() => exportProjectJson({ projectName, elements, customStickers })}>
+            Export JSON
+          </button>
+          <button type="button" onClick={() => setShowImport((value) => !value)}>
+            Import JSON
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!canvasRef.current) return
+              await exportCanvasAsPng(canvasRef.current, projectName)
+              setStatusMessage('Exported PNG.')
+            }}
+          >
+            Export PNG
+          </button>
+        </div>
+      </header>
+
+      {showImport && (
+        <section className="import-panel">
+          <textarea
+            value={importText}
+            onChange={(event) => setImportText(event.target.value)}
+            placeholder="Paste exported zine JSON here..."
+          />
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                const imported = parseImportedProject(importText)
+                setProjectName(imported.projectName)
+                setElements(imported.elements)
+                setCustomStickers(imported.customStickers ?? [])
+                setShowImport(false)
+                setImportText('')
+                setStatusMessage('Imported zine JSON.')
+              } catch {
+                setStatusMessage('Import failed: invalid JSON.')
+              }
+            }}
+          >
+            Apply Import
+          </button>
+        </section>
+      )}
+
+      <div className="editor-layout">
+        <Toolbar
+          onAddText={() =>
+            appendElement(
+              createElement('text', {
+                width: 280,
+                height: 120,
+                styles: { fontSize: 26, backgroundColor: '#ffff7a' },
+              }),
+            )
+          }
+          onAddImage={(file) => {
+            void handleAddImage(file)
+          }}
+          customStickers={customStickers}
+          onUploadCustomSticker={(file) => {
+            void handleUploadCustomSticker(file)
+          }}
+          onAddCustomStickerToCanvas={handleAddCustomStickerToCanvas}
+          onAddSticker={(kind: StickerKind) =>
+            appendElement(
+              createElement('sticker', {
+                stickerKind: kind,
+                content: kind,
+                width: kind === 'tape' ? 220 : 130,
+                height: kind === 'tape' ? 56 : 130,
+              }),
+            )
+          }
+          onAddEmbed={(url) =>
+            appendElement(
+              createElement('embed', {
+                content: url,
+                mediaUrl: url,
+                width: 260,
+                height: 120,
+              }),
+            )
+          }
+          onAddSoundFile={(file) => {
+            void handleAddSoundFile(file)
+          }}
+          onAddSoundUrl={(url) =>
+            appendElement(
+              createElement('sound', {
+                mediaUrl: url,
+                content: url,
+                width: 180,
+                height: 96,
+              }),
+            )
+          }
+        />
+
+        <Canvas
+          elements={elements}
+          selectedElementId={selectedElementId}
+          onSelect={setSelectedElementId}
+          onMoveStart={moveElementStart}
+          onAutoResizeTextElement={autoResizeTextElement}
+          canvasRef={canvasRef}
+        />
+
+        <PropertiesPanel
+          selected={selected}
+          onUpdate={updateElement}
+          onDelete={(id) => {
+            setElements((current) => current.filter((element) => element.id !== id))
+            setSelectedElementId(null)
+          }}
+          onDuplicate={duplicateElement}
+          onBringForward={(id) => {
+            setElements((current) => {
+              const maxZIndex = current.reduce((max, element) => Math.max(max, element.zIndex), 0)
+              return current.map((element) =>
+                element.id === id ? { ...element, zIndex: maxZIndex + 1 } : element,
+              )
+            })
+          }}
+          onSendBackward={(id) => {
+            setElements((current) => {
+              const minZIndex = current.reduce((min, element) => Math.min(min, element.zIndex), 0)
+              return current.map((element) =>
+                element.id === id ? { ...element, zIndex: minZIndex - 1 } : element,
+              )
+            })
+          }}
+        />
+      </div>
+      <footer className="status-bar">{statusMessage}</footer>
+    </div>
+  )
+}
+
+export default App
