@@ -13,6 +13,8 @@ npm run dev
 
 This repo includes a workflow that builds with Vite and publishes the `dist` folder to GitHub Pages.
 
+<img src="https://raw.githubusercontent.com/monapdx/zine-maker/refs/heads/main/zine-maker-05-11-2026_09_01_AM.png">
+
 1. Create an empty repository on GitHub (any name). The live app URL will be `https://<your-username>.github.io/<repo>/` (for example `https://yourname.github.io/zine-maker/`). The build sets the correct asset base path from the repository name automatically in Actions.
 2. On GitHub: **Settings → Pages**. Under **Build and deployment**, set **Source** to **GitHub Actions** (not “Deploy from a branch”). Do this before you rely on the first deploy; it provisions Pages for the Actions-based workflow.
 3. Push the `main` branch:
