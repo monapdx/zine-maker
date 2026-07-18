@@ -1,18 +1,6 @@
 import { toPng } from 'html-to-image'
 import type { ZineProject } from '../types'
 
-export function exportProjectJson(project: ZineProject): void {
-  const blob = new Blob([JSON.stringify(project, null, 2)], {
-    type: 'application/json',
-  })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = `${project.projectName || 'zine-project'}.json`
-  anchor.click()
-  URL.revokeObjectURL(url)
-}
-
 export function parseImportedProject(jsonText: string): ZineProject {
   const parsed = JSON.parse(jsonText) as ZineProject
   if (!parsed || !Array.isArray(parsed.elements) || typeof parsed.projectName !== 'string') {
@@ -24,12 +12,35 @@ export function parseImportedProject(jsonText: string): ZineProject {
   return parsed
 }
 
-export async function exportCanvasAsPng(node: HTMLElement, projectName: string): Promise<void> {
-  const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
-  const anchor = document.createElement('a')
-  anchor.href = dataUrl
-  anchor.download = `${projectName || 'zine-project'}.png`
-  anchor.click()
+export async function exportCanvasAsPdf(node: HTMLElement, projectName: string): Promise<void> {
+  const exportedCanvas = node.cloneNode(true) as HTMLElement
+  exportedCanvas.querySelectorAll('.resize-handle').forEach((handle) => handle.remove())
+  exportedCanvas.querySelectorAll('.selected').forEach((element) => element.classList.remove('selected'))
+  Object.assign(exportedCanvas.style, {
+    position: 'fixed',
+    left: '-10000px',
+    top: '0',
+    width: '900px',
+    height: '1200px',
+  })
+  document.body.appendChild(exportedCanvas)
+
+  try {
+    const { jsPDF } = await import('jspdf')
+    const width = exportedCanvas.offsetWidth
+    const height = exportedCanvas.offsetHeight
+    const dataUrl = await toPng(exportedCanvas, { cacheBust: true, pixelRatio: 2 })
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'px',
+      format: [width, height],
+      hotfixes: ['px_scaling'],
+    })
+    pdf.addImage(dataUrl, 'PNG', 0, 0, width, height, undefined, 'FAST')
+    pdf.save(`${projectName || 'zine-project'}.pdf`)
+  } finally {
+    exportedCanvas.remove()
+  }
 }
 
 function escapeHtml(value: string): string {

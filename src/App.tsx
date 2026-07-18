@@ -4,7 +4,7 @@ import { Canvas } from './components/Canvas'
 import { PropertiesPanel } from './components/PropertiesPanel'
 import { Toolbar } from './components/Toolbar'
 import type { CustomSticker, StickerKind, ZineElement, ZineElementType, ZineProject } from './types'
-import { exportCanvasAsHtml, exportCanvasAsPng, exportProjectJson, parseImportedProject } from './utils/export'
+import { exportCanvasAsHtml, exportCanvasAsPdf, parseImportedProject } from './utils/export'
 import { clearProject, loadProject, saveProject } from './utils/storage'
 import './styles.css'
 
@@ -342,9 +342,6 @@ function App() {
           >
             New Zine
           </button>
-          <button type="button" onClick={() => exportProjectJson({ projectName, elements, customStickers })}>
-            Export JSON
-          </button>
           <button type="button" onClick={() => setShowImport((value) => !value)}>
             Import JSON
           </button>
@@ -352,11 +349,11 @@ function App() {
             type="button"
             onClick={async () => {
               if (!canvasRef.current) return
-              await exportCanvasAsPng(canvasRef.current, projectName)
-              setStatusMessage('Exported PNG.')
+              await exportCanvasAsPdf(canvasRef.current, projectName)
+              setStatusMessage('Exported PDF.')
             }}
           >
-            Export PNG
+            Export PDF
           </button>
           <button
             type="button"
