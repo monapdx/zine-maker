@@ -4,7 +4,7 @@ import { Canvas } from './components/Canvas'
 import { PropertiesPanel } from './components/PropertiesPanel'
 import { Toolbar } from './components/Toolbar'
 import type { CustomSticker, StickerKind, ZineElement, ZineElementType, ZineProject } from './types'
-import { exportCanvasAsPng, exportProjectJson, parseImportedProject } from './utils/export'
+import { exportCanvasAsHtml, exportCanvasAsPng, exportProjectJson, parseImportedProject } from './utils/export'
 import { clearProject, loadProject, saveProject } from './utils/storage'
 import './styles.css'
 
@@ -241,7 +241,7 @@ function App() {
 
   function resizeElementStart(id: string, event: ReactPointerEvent<HTMLButtonElement>) {
     const source = elements.find((element) => element.id === id)
-    if (!source || (source.type !== 'image' && source.type !== 'text')) return
+    if (!source) return
 
     event.preventDefault()
     setSelectedElementId(id)
@@ -251,8 +251,14 @@ function App() {
     const pointerId = event.pointerId
     const handleNode = event.currentTarget
     const rotation = (source.rotation * Math.PI) / 180
-    const minWidth = source.type === 'text' ? 100 : 60
-    const minHeight = source.type === 'text' ? 50 : 60
+    const minimumSizes: Record<ZineElementType, { width: number; height: number }> = {
+      text: { width: 100, height: 50 },
+      image: { width: 60, height: 60 },
+      sticker: { width: 40, height: 40 },
+      sound: { width: 100, height: 50 },
+      embed: { width: 120, height: 60 },
+    }
+    const { width: minWidth, height: minHeight } = minimumSizes[source.type]
     handleNode.setPointerCapture(pointerId)
 
     const onPointerMove = (pointerEvent: PointerEvent) => {
@@ -351,6 +357,16 @@ function App() {
             }}
           >
             Export PNG
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!canvasRef.current) return
+              exportCanvasAsHtml(canvasRef.current, projectName)
+              setStatusMessage('Exported HTML.')
+            }}
+          >
+            Export HTML
           </button>
         </div>
       </header>

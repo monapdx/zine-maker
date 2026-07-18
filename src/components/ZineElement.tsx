@@ -165,7 +165,7 @@ export function ZineElementView({
         </button>
       )}
 
-      {isSelected && (element.type === 'image' || element.type === 'text') && (
+      {isSelected && (
         <button
           type="button"
           className="resize-handle"
