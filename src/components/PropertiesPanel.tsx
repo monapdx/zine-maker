@@ -85,6 +85,24 @@ export function PropertiesPanel({
           </label>
         )}
 
+        {selected.type === 'sticker' && selected.stickerKind === 'label' && (
+          <label>
+            Background
+            <input
+              type="color"
+              value={selected.styles.backgroundColor ?? '#f8f8f8'}
+              onChange={(event) =>
+                onUpdate(selected.id, {
+                  styles: {
+                    ...selected.styles,
+                    backgroundColor: event.target.value,
+                  },
+                })
+              }
+            />
+          </label>
+        )}
+
         {selected.type === 'text' && (
           <>
             <label>

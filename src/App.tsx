@@ -99,7 +99,7 @@ function App() {
     const dataUrl = await fileToDataUrl(file)
     appendElement(
       createElement('sound', {
-        content: `Sound: ${file.name}`,
+        content: file.name,
         mediaUrl: dataUrl,
         width: 180,
         height: 96,
@@ -153,6 +153,52 @@ function App() {
       }
       setSelectedElementId(duplicate.id)
       return [...current, duplicate]
+    })
+  }
+
+  function bringElementForward(id: string) {
+    setElements((current) => {
+      const sorted = [...current].sort((a, b) => a.zIndex - b.zIndex || a.id.localeCompare(b.id))
+      const index = sorted.findIndex((element) => element.id === id)
+      if (index < 0 || index >= sorted.length - 1) return current
+
+      const active = sorted[index]
+      const neighbor = sorted[index + 1]
+      return current.map((element) => {
+        if (element.id === active.id) {
+          return {
+            ...element,
+            zIndex: neighbor.zIndex === active.zIndex ? neighbor.zIndex + 1 : neighbor.zIndex,
+          }
+        }
+        if (element.id === neighbor.id) {
+          return { ...element, zIndex: active.zIndex }
+        }
+        return element
+      })
+    })
+  }
+
+  function sendElementBackward(id: string) {
+    setElements((current) => {
+      const sorted = [...current].sort((a, b) => a.zIndex - b.zIndex || a.id.localeCompare(b.id))
+      const index = sorted.findIndex((element) => element.id === id)
+      if (index <= 0) return current
+
+      const active = sorted[index]
+      const neighbor = sorted[index - 1]
+      return current.map((element) => {
+        if (element.id === active.id) {
+          return { ...element, zIndex: neighbor.zIndex }
+        }
+        if (element.id === neighbor.id) {
+          return {
+            ...element,
+            zIndex: neighbor.zIndex === active.zIndex ? active.zIndex + 1 : active.zIndex,
+          }
+        }
+        return element
+      })
     })
   }
 
@@ -408,22 +454,8 @@ function App() {
             setSelectedElementId(null)
           }}
           onDuplicate={duplicateElement}
-          onBringForward={(id) => {
-            setElements((current) => {
-              const maxZIndex = current.reduce((max, element) => Math.max(max, element.zIndex), 0)
-              return current.map((element) =>
-                element.id === id ? { ...element, zIndex: maxZIndex + 1 } : element,
-              )
-            })
-          }}
-          onSendBackward={(id) => {
-            setElements((current) => {
-              const minZIndex = current.reduce((min, element) => Math.min(min, element.zIndex), 0)
-              return current.map((element) =>
-                element.id === id ? { ...element, zIndex: minZIndex - 1 } : element,
-              )
-            })
-          }}
+          onBringForward={bringElementForward}
+          onSendBackward={sendElementBackward}
         />
       </div>
       <footer className="status-bar">{statusMessage}</footer>

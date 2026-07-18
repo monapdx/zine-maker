@@ -205,6 +205,12 @@ button.danger {
   box-shadow: 4px 4px 0 #111;
 }
 
+.image-element.gif-media,
+.sticker-element.gif-media {
+  border: none;
+  box-shadow: none;
+}
+
 .resize-handle {
   position: absolute;
   right: -10px;
@@ -299,9 +305,12 @@ button.danger {
   box-sizing: border-box;
 }
 
-.embed-card span {
+.embed-link {
   word-break: break-all;
   font-size: 0.8rem;
+  color: #111;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .sound-element {

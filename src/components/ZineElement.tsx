@@ -39,6 +39,11 @@ function randomRansomRotate(seed: number): number {
   return ((seed * 13) % 9) - 4
 }
 
+function externalLinkUrl(url?: string): string {
+  const trimmedUrl = url?.trim() ?? ''
+  return /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`
+}
+
 export function ZineElementView({
   element,
   isSelected,
@@ -48,6 +53,10 @@ export function ZineElementView({
 }: ZineElementProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const words = useMemo(() => element.content.split(' '), [element.content])
+  const isGif =
+    element.mediaUrl?.startsWith('data:image/gif') ||
+    /\.gif(?:$|[?#])/i.test(element.mediaUrl ?? '') ||
+    /\.gif$/i.test(element.content)
 
   return (
     <div
@@ -94,11 +103,22 @@ export function ZineElementView({
       )}
 
       {element.type === 'image' && (
-        <img className="image-element" src={element.mediaUrl} alt={element.content || 'User uploaded element'} />
+        <img
+          className={`image-element ${isGif ? 'gif-media' : ''}`}
+          src={element.mediaUrl}
+          alt={element.content || 'User uploaded element'}
+        />
       )}
 
       {element.type === 'sticker' && (
-        <div className={`sticker-element sticker-${element.stickerKind ?? 'star'}`}>
+        <div
+          className={`sticker-element sticker-${element.stickerKind ?? 'star'} ${isGif ? 'gif-media' : ''}`}
+          style={
+            element.stickerKind === 'label'
+              ? { backgroundColor: element.styles.backgroundColor ?? '#f8f8f8' }
+              : undefined
+          }
+        >
           {element.mediaUrl ? (
             <img className="custom-sticker-image" src={element.mediaUrl} alt={element.content || 'Custom sticker'} />
           ) : (
@@ -108,10 +128,22 @@ export function ZineElementView({
       )}
 
       {element.type === 'embed' && (
-        <a className="embed-card" href={element.mediaUrl} target="_blank" rel="noreferrer">
+        <div className="embed-card">
           <strong>LINK DROP</strong>
-          <span>{element.mediaUrl}</span>
-        </a>
+          <a
+            className="embed-link"
+            href={externalLinkUrl(element.mediaUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onPointerDown={(event) => {
+              event.stopPropagation()
+              onSelect(element.id)
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {element.mediaUrl}
+          </a>
+        </div>
       )}
 
       {element.type === 'sound' && (
@@ -128,7 +160,7 @@ export function ZineElementView({
             }
           }}
         >
-          <span>PLAY SOUND</span>
+          <span>{element.content || 'PLAY SOUND'}</span>
           <audio ref={audioRef} src={element.mediaUrl} />
         </button>
       )}
