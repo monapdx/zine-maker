@@ -9,6 +9,24 @@ npm install
 npm run dev
 ```
 
+## itch.io (HTML5)
+
+Package the app as a browser-playable zip:
+
+```bash
+npm install
+npm run package:itch
+```
+
+This builds with relative asset paths and writes `release/zine-maker-itch.zip` (with `index.html` at the zip root).
+
+On itch.io:
+
+1. Create a new project and set **Kind of project** to **HTML**.
+2. Upload `release/zine-maker-itch.zip` and check **This file will be played in the browser**.
+3. Set the **Embed** viewport to roughly `1000 × 800` (or larger) and enable **Fullscreen button** — the canvas is 900 × 1200.
+4. Save and view the page.
+
 ## GitHub Pages
 
 This repo includes a workflow that builds with Vite and publishes the `dist` folder to GitHub Pages.
