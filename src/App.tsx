@@ -140,21 +140,6 @@ function App() {
     )
   }
 
-  function autoResizeTextElement(id: string, nextHeight: number) {
-    setElements((current) =>
-      current.map((element) => {
-        if (element.id !== id || element.type !== 'text') {
-          return element
-        }
-        const clampedHeight = Math.max(64, Math.min(canvasHeight - element.y, nextHeight))
-        if (Math.abs(clampedHeight - element.height) <= 1) {
-          return element
-        }
-        return { ...element, height: clampedHeight }
-      }),
-    )
-  }
-
   function duplicateElement(id: string) {
     setElements((current) => {
       const source = current.find((element) => element.id === id)
@@ -206,6 +191,55 @@ function App() {
 
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
+  }
+
+  function resizeElementStart(id: string, event: ReactPointerEvent<HTMLButtonElement>) {
+    const source = elements.find((element) => element.id === id)
+    if (!source || (source.type !== 'image' && source.type !== 'text')) return
+
+    event.preventDefault()
+    setSelectedElementId(id)
+
+    const startX = event.clientX
+    const startY = event.clientY
+    const pointerId = event.pointerId
+    const handleNode = event.currentTarget
+    const rotation = (source.rotation * Math.PI) / 180
+    const minWidth = source.type === 'text' ? 100 : 60
+    const minHeight = source.type === 'text' ? 50 : 60
+    handleNode.setPointerCapture(pointerId)
+
+    const onPointerMove = (pointerEvent: PointerEvent) => {
+      const dx = pointerEvent.clientX - startX
+      const dy = pointerEvent.clientY - startY
+      const localDx = dx * Math.cos(rotation) + dy * Math.sin(rotation)
+      const localDy = -dx * Math.sin(rotation) + dy * Math.cos(rotation)
+
+      setElements((current) =>
+        current.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                width: Math.max(minWidth, Math.min(canvasWidth - source.x, source.width + localDx)),
+                height: Math.max(minHeight, Math.min(canvasHeight - source.y, source.height + localDy)),
+              }
+            : item,
+        ),
+      )
+    }
+
+    const stopResizing = () => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', stopResizing)
+      window.removeEventListener('pointercancel', stopResizing)
+      if (handleNode.hasPointerCapture(pointerId)) {
+        handleNode.releasePointerCapture(pointerId)
+      }
+    }
+
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', stopResizing)
+    window.addEventListener('pointercancel', stopResizing)
   }
 
   function saveCurrentProject() {
@@ -326,7 +360,7 @@ function App() {
             appendElement(
               createElement('sticker', {
                 stickerKind: kind,
-                content: kind,
+                content: kind === 'label' ? 'LABEL' : kind,
                 width: kind === 'tape' ? 220 : 130,
                 height: kind === 'tape' ? 56 : 130,
               }),
@@ -362,7 +396,7 @@ function App() {
           selectedElementId={selectedElementId}
           onSelect={setSelectedElementId}
           onMoveStart={moveElementStart}
-          onAutoResizeTextElement={autoResizeTextElement}
+          onResizeStart={resizeElementStart}
           canvasRef={canvasRef}
         />
 

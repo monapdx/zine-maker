@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { StickerKind, ZineElement } from '../types'
 
@@ -7,10 +7,10 @@ interface ZineElementProps {
   isSelected: boolean
   onSelect: (id: string) => void
   onMoveStart: (id: string, event: ReactPointerEvent<HTMLDivElement>) => void
-  onAutoResizeTextElement: (id: string, nextHeight: number) => void
+  onResizeStart: (id: string, event: ReactPointerEvent<HTMLButtonElement>) => void
 }
 
-function stickerMarkup(kind: StickerKind): string {
+function stickerMarkup(kind: StickerKind, content: string): string {
   switch (kind) {
     case 'star':
       return '⭐'
@@ -27,7 +27,7 @@ function stickerMarkup(kind: StickerKind): string {
     case 'arrow':
       return '➤'
     case 'label':
-      return 'LABEL'
+      return content || 'LABEL'
     case 'tape':
       return ''
     default:
@@ -44,29 +44,10 @@ export function ZineElementView({
   isSelected,
   onSelect,
   onMoveStart,
-  onAutoResizeTextElement,
+  onResizeStart,
 }: ZineElementProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const textRef = useRef<HTMLDivElement | null>(null)
   const words = useMemo(() => element.content.split(' '), [element.content])
-
-  useLayoutEffect(() => {
-    if (element.type !== 'text' || !textRef.current) return
-    const measuredHeight = Math.max(64, Math.ceil(textRef.current.scrollHeight + 4))
-    if (Math.abs(measuredHeight - element.height) > 1) {
-      onAutoResizeTextElement(element.id, measuredHeight)
-    }
-  }, [
-    element.id,
-    element.type,
-    element.content,
-    element.height,
-    element.styles.fontSize,
-    element.styles.fontStyle,
-    element.styles.fontWeight,
-    element.styles.ransomMode,
-    onAutoResizeTextElement,
-  ])
 
   return (
     <div
@@ -87,7 +68,6 @@ export function ZineElementView({
     >
       {element.type === 'text' && (
         <div
-          ref={textRef}
           className="text-element"
           style={{
             fontSize: element.styles.fontSize ?? 22,
@@ -122,7 +102,7 @@ export function ZineElementView({
           {element.mediaUrl ? (
             <img className="custom-sticker-image" src={element.mediaUrl} alt={element.content || 'Custom sticker'} />
           ) : (
-            stickerMarkup(element.stickerKind ?? 'star')
+            stickerMarkup(element.stickerKind ?? 'star', element.content)
           )}
         </div>
       )}
@@ -151,6 +131,20 @@ export function ZineElementView({
           <span>PLAY SOUND</span>
           <audio ref={audioRef} src={element.mediaUrl} />
         </button>
+      )}
+
+      {isSelected && (element.type === 'image' || element.type === 'text') && (
+        <button
+          type="button"
+          className="resize-handle"
+          aria-label={`Resize ${element.type}`}
+          title="Drag to resize"
+          onPointerDown={(event) => {
+            event.stopPropagation()
+            onResizeStart(element.id, event)
+          }}
+          onClick={(event) => event.stopPropagation()}
+        />
       )}
     </div>
   )

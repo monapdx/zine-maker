@@ -8,7 +8,7 @@ interface CanvasProps {
   selectedElementId: string | null
   onSelect: (id: string | null) => void
   onMoveStart: (id: string, event: ReactPointerEvent<HTMLDivElement>) => void
-  onAutoResizeTextElement: (id: string, nextHeight: number) => void
+  onResizeStart: (id: string, event: ReactPointerEvent<HTMLButtonElement>) => void
   canvasRef: RefObject<HTMLDivElement | null>
 }
 
@@ -17,7 +17,7 @@ export function Canvas({
   selectedElementId,
   onSelect,
   onMoveStart,
-  onAutoResizeTextElement,
+  onResizeStart,
   canvasRef,
 }: CanvasProps) {
   const fallbackRef = useRef<HTMLDivElement | null>(null)
@@ -36,7 +36,7 @@ export function Canvas({
               isSelected={selectedElementId === element.id}
               onSelect={onSelect}
               onMoveStart={onMoveStart}
-              onAutoResizeTextElement={onAutoResizeTextElement}
+              onResizeStart={onResizeStart}
             />
           ))}
       </div>

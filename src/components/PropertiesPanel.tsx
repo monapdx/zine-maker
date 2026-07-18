@@ -73,9 +73,11 @@ export function PropertiesPanel({
           />
         </label>
 
-        {(selected.type === 'text' || selected.type === 'embed') && (
+        {(selected.type === 'text' ||
+          selected.type === 'embed' ||
+          (selected.type === 'sticker' && selected.stickerKind === 'label')) && (
           <label>
-            Content
+            {selected.type === 'sticker' ? 'Label Text' : 'Content'}
             <textarea
               value={selected.content}
               onChange={(event) => onUpdate(selected.id, { content: event.target.value })}
