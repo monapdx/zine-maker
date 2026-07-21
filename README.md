@@ -24,8 +24,9 @@ On itch.io:
 
 1. Create a new project and set **Kind of project** to **HTML**.
 2. Upload `release/zine-maker-itch.zip` and check **This file will be played in the browser**.
-3. Set the **Embed** viewport to roughly `1000 × 800` (or larger) and enable **Fullscreen button** — the canvas is 900 × 1200.
-4. Save and view the page.
+3. Set the **Embed** viewport to at least `1100 × 1400` (or enable **Fullscreen button**) — the canvas is 900 × 1200, so a short embed clips the editor.
+4. In embed options, enable **Scrollbars**. itch.io hides them by default; without that (or a tall enough viewport / fullscreen), content below the fold is unreachable.
+5. Save and view the page.
 
 ## GitHub Pages
 
